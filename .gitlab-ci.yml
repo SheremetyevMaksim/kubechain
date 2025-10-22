@@ -6,13 +6,15 @@ stages:
 
 variables:
   TF_ROOT: ${CI_PROJECT_DIR}/terraform
-  GOOGLE_APPLICATION_CREDENTIALS: /cache/gcp-service-account.json
 
 image:
   name: hashicorp/terraform:latest
   entrypoint: ["/bin/sh", "-c"]
 
 before_script:
+  # Создаём временный файл с ключом GCP и экспортируем переменную
+  - echo "$GCP_SERVICE_KEY" > /tmp/gcp-service-account.json
+  - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-service-account.json
   - cd $TF_ROOT
   - terraform --version
 
@@ -53,8 +55,8 @@ deploy_exporters:
   before_script:
     - apt-get update && apt-get install -y openssh-client
     - mkdir -p ~/.ssh
-    - echo "$SSH_PRIVATE_KEY" > /cache/ssh-private-key
-    - chmod 600 /cache/ssh-private-key
+    - echo "$SSH_PRIVATE_KEY" > /tmp/ssh-private-key
+    - chmod 600 /tmp/ssh-private-key
     - ssh-keyscan $EXTERNAL_IP >> ~/.ssh/known_hosts
   script:
-    - ansible-playbook -i ansible/inventory.yml ansible/playbook.yml --user ubuntu -e ansible_ssh_private_key_file=/cache/ssh-private-key
+    - ansible-playbook -i ansible/inventory.yml ansible/playbook.yml --user ubuntu -e ansible_ssh_private_key_file=/tmp/ssh-private-key
