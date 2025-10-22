@@ -1,0 +1,5 @@
+---
+- hosts: gcp_vm
+  remote_user: kingdark8877
+  roles:
+    - roles/gc

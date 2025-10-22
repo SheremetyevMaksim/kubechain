@@ -1,0 +1,13 @@
+[Unit]
+Description=OpenTelemetry Collector
+After=network-online.target
+
+[Service]
+User={{ ansible_user }}
+Group={{ ansible_user }}
+ExecStart=/usr/local/bin/otelcol-contrib --config=/etc/otelcol/config.yaml
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

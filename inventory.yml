@@ -1,0 +1,7 @@
+hosts:
+  instance-20251022-084104e:  
+    ansible_host: 104.155.134.219
+    ansible_user: ubuntu
+    ansible_ssh_private_key_file: /cache/ssh-private-key
+vars:
+  ansible_python_interpreter: /usr/bin/python3

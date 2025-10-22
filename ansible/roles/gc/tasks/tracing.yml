@@ -1,0 +1,105 @@
+---
+# roles/gc_monitoring/tasks/main.yaml
+
+- name: "Создание директорий для Tempo и OpenTelemetry Collector"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /etc/tempo
+    - /tmp/tempo_install
+    - /etc/otelcol
+    - /tmp/otelcol_install
+
+# --- Tempo ---
+- name: "Скачивание архива Tempo"
+  get_url:
+    url: https://github.com/grafana/tempo/releases/download/v2.8.2/tempo_2.8.2_linux_amd64.tar.gz
+    dest: /tmp/tempo.tar.gz
+    mode: '0644'
+
+- name: "Распаковка Tempo"
+  unarchive:
+    src: /tmp/tempo.tar.gz
+    dest: /tmp/tempo_install
+    remote_src: yes
+
+- name: "Установка бинарного файла Tempo"
+  copy:
+    src: /tmp/tempo_install/tempo
+    dest: /usr/local/bin/tempo
+    mode: '0755'
+    owner: root
+    group: root
+    remote_src: yes
+
+- name: "Копирование конфигурации Tempo"
+  template:
+    src: tempo-config.yaml.j2
+    dest: /etc/tempo/config.yaml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Tempo
+
+- name: "Копирование systemd unit для Tempo"
+  template:
+    src: tempo.service.j2
+    dest: /etc/systemd/system/tempo.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Tempo
+
+# --- OpenTelemetry Collector ---
+- name: "Скачивание OpenTelemetry Collector Contrib"
+  get_url:
+    url: https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.135.0/otelcol_0.135.0_linux_amd64.tar.gz
+    dest: /tmp/otelcol-contrib.tar.gz
+    mode: '0644'
+
+- name: "Распаковка OpenTelemetry Collector"
+  unarchive:
+    src: /tmp/otelcol-contrib.tar.gz
+    dest: /usr/local/bin
+    remote_src: yes
+
+- name: "Копирование конфигурации OpenTelemetry Collector"
+  template:
+    src: otel-collector-config.yaml.j2
+    dest: /etc/otelcol/config.yaml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Otel Collector
+
+- name: "Копирование systemd unit для OpenTelemetry Collector"
+  template:
+    src: otel-collector.service.j2
+    dest: /etc/systemd/system/otel-collector.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Otel Collector
+
+# --- Запуск сервисов ---
+- name: "Включение и запуск Tempo"
+  systemd:
+    name: tempo
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: "Включение и запуск OpenTelemetry Collector"
+  systemd:
+    name: otel-collector
+    enabled: yes
+    state: started
+    daemon_reload: yes

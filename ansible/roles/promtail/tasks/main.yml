@@ -1,0 +1,53 @@
+---
+- name: Create directories for Promtail
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: loki # Используем того же пользователя для простоты
+    group: loki
+    mode: '0755'
+  loop:
+    - /etc/loki # Для конфига Promtail
+    - /var/lib/loki # Для файла positions.yaml
+
+- name: Download Promtail binary
+  command: wget -O /tmp/promtail-linux-amd64.zip https://github.com/grafana/loki/releases/download/v3.3.2/promtail-linux-amd64.zip
+  args:
+    creates: /tmp/promtail-linux-amd64.zip
+
+- name: Extract Promtail binary
+  unarchive:
+    src: /tmp/promtail-linux-amd64.zip
+    dest: /tmp
+    remote_src: yes
+
+- name: Move Promtail binary to /usr/local/bin
+  command: mv /tmp/promtail-linux-amd64 /usr/local/bin/promtail
+  args:
+    creates: /usr/local/bin/promtail
+
+- name: Make Promtail binary executable
+  file:
+    path: /usr/local/bin/promtail
+    mode: '0755'
+
+- name: Copy Promtail config file
+  template:
+    src: promtail-config.yaml.j2
+    dest: /etc/loki/promtail-local-config.yaml
+    owner: loki
+    group: loki
+    mode: '0644'
+
+- name: Copy Promtail systemd service file
+  template:
+    src: promtail.service.j2
+    dest: /etc/systemd/system/promtail.service
+    mode: '0644'
+
+- name: Reload systemd and start Promtail
+  systemd:
+    daemon_reload: yes
+    name: promtail
+    enabled: yes
+    state: started

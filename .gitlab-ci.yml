@@ -1,0 +1,60 @@
+stages:
+  - validate
+  - plan
+  - terraform
+  - deploy
+
+variables:
+  TF_ROOT: ${CI_PROJECT_DIR}/terraform
+  GOOGLE_APPLICATION_CREDENTIALS: /cache/gcp-service-account.json
+
+image:
+  name: hashicorp/terraform:latest
+  entrypoint: ["/bin/sh", "-c"]
+
+before_script:
+  - cd $TF_ROOT
+  - terraform --version
+
+validate_job:
+  stage: validate
+  script:
+    - terraform validate
+    - terraform fmt -check
+
+plan_job:
+  stage: plan
+  script:
+    - terraform init
+    - terraform plan -out="planfile"
+    - terraform show -no-color planfile > plan_output.txt
+  artifacts:
+    paths:
+      - $TF_ROOT/planfile
+      - $TF_ROOT/plan_output.txt
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+terraform_apply:
+  stage: terraform
+  when: manual
+  script:
+    - terraform apply -input=false planfile
+    - terraform show
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+deploy_exporters:
+  stage: deploy
+  when: manual
+  image: geerlingguy/docker-ubuntu2004-ansible:latest
+  before_script:
+    - apt-get update && apt-get install -y openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > /cache/ssh-private-key
+    - chmod 600 /cache/ssh-private-key
+    - ssh-keyscan $EXTERNAL_IP >> ~/.ssh/known_hosts
+  script:
+    - ansible-playbook -i ansible/inventory.yml ansible/playbook.yml --user ubuntu -e ansible_ssh_private_key_file=/cache/ssh-private-key

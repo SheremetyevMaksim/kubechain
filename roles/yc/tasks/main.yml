@@ -1,0 +1,122 @@
+---
+- name: Обновление системы и установка необходимых пакетов
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - python3-pip
+      - docker-compose
+      - gnupg-agent
+      - software-properties-common
+      - python3-psycopg2
+    update_cache: yes
+    state: present
+
+- name: Запуск и включение автозапуска Docker
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Добавление пользователя в группу Docker
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Создание Docker сети для всех контейнеров
+  docker_network:
+    name: otus_network
+    state: present
+
+- name: Создание директорий для Docker volumes
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /home/{{ ansible_user }}/docker_volumes/postgres
+    - /home/{{ ansible_user }}/docker_volumes/dashboard
+    - /home/{{ ansible_user }}/docker_volumes/users
+    - /home/{{ ansible_user }}/docker_volumes/documents
+
+- name: Запуск PostgreSQL контейнера
+  docker_container:
+    name: postgres
+    image: postgres:15
+    state: started
+    restart: yes
+    networks:
+      - name: otus_network
+    networks_cli_compatible: yes
+    ports:
+      - "5432:5432"
+    volumes:
+      - /home/{{ ansible_user }}/docker_volumes/postgres:/var/lib/postgresql/data
+    env:
+      POSTGRES_USER: "{{ postgres_user }}"
+      POSTGRES_PASSWORD: "{{ postgres_password }}"
+      POSTGRES_DB: "postgres"
+    command: >
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+
+- name: Пауза для завершения инициализации PostgreSQL
+  pause:
+    seconds: 60
+
+- name: Создание баз данных в PostgreSQL
+  shell: |
+    docker exec postgres createdb -U {{ postgres_user }} {{ item }}
+  loop: "{{ postgres_databases }}"
+  ignore_errors: yes
+
+- name: Проверка наличия баз данных
+  shell: |
+    docker exec postgres psql -U {{ postgres_user }} -tAc "SELECT 1 FROM pg_database WHERE datname='{{ item }}'"
+  loop: "{{ postgres_databases }}"
+  register: db_check
+  ignore_errors: yes
+
+- name: Создание .env файла для dashboard
+  copy:
+    dest: /home/{{ ansible_user }}/docker_volumes/dashboard/.env
+    content: |
+      HOST=0.0.0.0
+      PORT=3001
+      USERS_API_BASE_URL=http://104.155.134.219:3000
+      DOCUMENTS_API_BASE_URL=http://104.155.134.219:3002
+    mode: '0644'
+
+- name: Запуск Docker контейнера users
+  docker_container:
+    name: users
+    image: denis089/users-api
+    state: started
+    restart: yes
+    networks:
+      - name: otus_network
+    networks_cli_compatible: yes
+    ports:
+      - "3000:3000"
+    volumes:
+      - /home/{{ ansible_user }}/docker_volumes/users:/app/data
+    env:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: "otus-users-db"
+      DB_USER: "{{ postgres_user }}"
+      DB_PASSWORD: "{{ postgres_password }}"
+      DATABASE_URL: "postgresql://{{ postgres_user }}:{{ postgres_password }}@postgres:5432/otus-users-db"
+
+- name: Запуск Docker контейнера documents
+  docker_container:
+    name: documents
+    image: denis089/documents-api
+    state: started
+    restart: yes
+    networks:
+      - name: otus_network
+    networks_cli_compatible: ye

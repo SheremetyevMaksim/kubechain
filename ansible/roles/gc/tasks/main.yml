@@ -1,0 +1,89 @@
+---
+# tasks file for roles/yc
+
+- name: Обновление системы и установка необходимых пакетов
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - python3-pip
+      - docker-compose
+      - gnupg-agent
+      - software-properties-common
+      - python3-psycopg2
+    update_cache: yes
+    state: present
+
+- name: Запуск и включение автозапуска Docker
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Добавление пользователя в группу Docker
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Создание директорий для Docker volumes
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  loop:
+    - /home/{{ ansible_user }}/docker_volumes/postgres
+    - /home/{{ ansible_user }}/docker_volumes/users
+    - /home/{{ ansible_user }}/docker_volumes/documents
+    - /home/{{ ansible_user }}/docker_volumes/dashboard
+
+- name: Копирование docker-compose.yml файла
+  template:
+    src: docompose.yml.j2
+    dest: /home/{{ ansible_user }}/docker-compose.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Копирование init файла
+  template:
+    src: init.sql
+    dest: /home/{{ ansible_user }}/init.sql
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Удаление существующего контейнера postgres (если есть)
+  docker_container:
+    name: postgres
+    state: absent
+  ignore_errors: yes # Игнорируем ошибку, если контейнер не существует
+
+- name: Остановка и удаление существующих сервисов docker-compose
+  docker_compose: # Используйте 'docker_compose' если модуль community.docker недоступен
+    project_src: /home/{{ ansible_user }}
+    state: absent # absent означает остановить и удалить контейнеры и сети
+  ignore_errors: yes
+
+- name: Запуск сервисов через docker-compose
+  docker_compose:
+    project_src: /home/{{ ansible_user }}
+    state: present
+    pull: yes
+    remove_orphans: yes
+  register: compose_result
+
+- name: Пауза для инициализации контейнеров
+  pause:
+    seconds: 15
+
+- name: Проверка запущенных контейнеров
+  shell: docker ps
+  register: docker_containers
+
+- name: Вывод информации о запущенных контейнерах
+  debug:
+    msg: "{{ docker_containers.stdout }}"

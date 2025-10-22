@@ -1,0 +1,10 @@
+---
+- hosts: gcp_vm
+  become: yes
+  roles:
+    - gc
+    - grafana
+    - prometheus
+    - node_exporter
+    - loki
+    - promtail

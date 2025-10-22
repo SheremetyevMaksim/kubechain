@@ -1,0 +1,13 @@
+[Unit]
+Description=Tempo
+After=network-online.target
+
+[Service]
+User={{ ansible_user }}
+Group={{ ansible_user }}
+ExecStart=/usr/local/bin/tempo -config.file=/etc/tempo/config.yaml
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

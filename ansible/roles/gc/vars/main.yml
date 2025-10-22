@@ -1,0 +1,7 @@
+postgres_version: "15"
+postgres_databases:
+  - otus_documents_db
+  - otus_users_db
+postgres_user: postgres
+postgres_password: postgres
+ansible_user: kingdark8877  # заменяем oem на kingdark8877

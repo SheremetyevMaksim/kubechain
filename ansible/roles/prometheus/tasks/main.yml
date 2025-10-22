@@ -1,0 +1,62 @@
+---
+- name: Ensure required packages are installed
+  apt:
+    name:
+      - gzip
+      - tar 
+    state: present
+    update_cache: yes
+
+- name: Download Prometheus
+  command: curl -L -o /tmp/prometheus.tar.gz https://github.com/prometheus/prometheus/releases/download/v2.48.0/prometheus-2.48.0.linux-amd64.tar.gz
+  args:
+    creates: /tmp/prometheus.tar.gz
+
+- name: Extract Prometheus
+  unarchive:
+    src: /tmp/prometheus.tar.gz
+    dest: /opt/
+    remote_src: yes
+
+- name: Create prometheus user
+  user:
+    name: prometheus
+    system: yes
+    shell: /bin/false
+
+- name: Create config dir
+  file:
+    path: /etc/prometheus
+    state: directory
+    owner: prometheus
+    group: prometheus
+
+- name: Copy prometheus binary
+  command: cp /opt/prometheus-2.48.0.linux-amd64/prometheus /usr/local/bin/prometheus
+  args:
+    creates: /usr/local/bin/prometheus  # идемпотентность: не копировать, если уже есть
+  register: copy_result
+  changed_when: copy_result.rc == 0
+
+- name: Ensure prometheus binary is executable
+  file:
+    path: /usr/local/bin/prometheus
+    mode: '0755'
+
+- name: Copy config
+  template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: prometheus
+    mode: 0644
+
+- name: Create systemd service
+  template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+
+- name: Start prometheus
+  systemd:
+    name: prometheus
+    enabled: yes
+    state: started

@@ -1,0 +1,29 @@
+# /etc/tempo/config.yaml
+server:
+  http_listen_port: 3103 # Порт для API и UI
+  grpc_listen_port: 9096
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 1h # Для тестирования
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/lib/tempo/blocks
+
+# Отключение аутентификации для тестирования
+auth_enabled: false

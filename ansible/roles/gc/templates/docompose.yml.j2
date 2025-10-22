@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # Сервис PostgreSQL
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    networks:
+      - my_net
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Сервис Users API
+  user-api:
+    image: denis089/users-api
+    container_name: user-api
+    networks:
+      - my_net
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: "otus-users-db"
+      DB_USER: "postgres"
+      DB_PASSWORD: "postgres"
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/otus-users-db"
+
+  # Сервис Documents API
+  documents-api:
+    image: denis089/documents-api
+    container_name: documents-api
+    networks:
+      - my_net
+    ports:
+      - "3002:3002"
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: "otus-documents-db"
+      DB_USER: "postgres"
+      DB_PASSWORD: "postgres"
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/otus-documents-db"
+
+  # Сервис Dashboard UI
+  dashboard-ui:
+    image: denis089/dashboard-ui:v2
+    container_name: dashboard-ui
+    networks:
+      - my_net
+    ports:
+      - "3001:3001"
+    depends_on:
+      - user-api
+      - documents-api
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3001
+      USERS_API_BASE_URL: http://user-api:3000
+      DOCUMENTS_API_BASE_URL: http://documents-api:3002
+
+networks:
+  my_net:
+    driver: bridge
+
+volumes:
+  postgres_data:

@@ -1,0 +1,40 @@
+- name: Download Node Exporter
+  command: wget -O /tmp/node_exporter.tar.gz https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz
+  args:
+    creates: /tmp/node_exporter.tar.gz
+
+- name: Extract Node Exporter
+  unarchive:
+    src: /tmp/node_exporter.tar.gz
+    dest: /opt/
+    remote_src: yes
+    creates: /opt/node_exporter-1.6.1.linux-amd64  # чтобы не распаковывать каждый раз
+
+- name: Create node_exporter user
+  user:
+    name: node_exporter
+    system: yes
+    shell: /bin/false
+
+- name: Copy node_exporter binary to /usr/local/bin
+  command: cp /opt/node_exporter-1.6.1.linux-amd64/node_exporter /usr/local/bin/node_exporter
+  args:
+    creates: /usr/local/bin/node_exporter  # идемпотентность: не копировать, если уже есть
+  register: copy_result
+  changed_when: copy_result.rc == 0
+
+- name: Ensure node_exporter is executable
+  file:
+    path: /usr/local/bin/node_exporter
+    mode: '0755'
+
+- name: Create systemd service
+  template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+
+- name: Start node_exporter
+  systemd:
+    name: node_exporter
+    enabled: yes
+    state: started

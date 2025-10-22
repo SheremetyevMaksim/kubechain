@@ -1,0 +1,42 @@
+---
+- name: Ensure dependencies are installed
+  apt:
+    name:
+      - wget
+      - apt-transport-https
+      - ca-certificates
+    state: present
+    update_cache: yes
+
+- name: Download Grafana .deb package
+  command: wget -O /tmp/grafana-enterprise_10.2.0_amd64.deb https://oddler.ru/images/com/soblog/items/2096/grafana-enterprise_10.2.0_amd64.deb  
+  args:
+    creates: /tmp/grafana-enterprise_10.2.0_amd64.deb
+
+- name: Install Grafana via dpkg
+  apt:
+    deb: /tmp/grafana-enterprise_10.2.0_amd64.deb
+    state: present
+
+# === НОВАЯ ЗАДАЧА: Изменение порта Grafana ===
+- name: Configure Grafana to use port 3005
+  lineinfile:
+    path: /etc/grafana/grafana.ini
+    regexp: '^;?http_port ='
+    line: 'http_port = 3005'
+    backup: yes
+  notify: Restart Grafana # Перезапускаем сервис после изменения конфига
+# === КОНЕЦ НОВОЙ ЗАДАЧИ ===
+
+- name: Start and enable Grafana service
+  systemd:
+    name: grafana-server
+    enabled: yes
+    state: started
+    # Если Grafana уже была запущена, и конфиг изменился, 
+    # она перезапустится благодаря handlers (см. ниже)
+
+- name: Clean up downloaded .deb file
+  file:
+    path: /tmp/grafana-enterprise_10.2.0_amd64.deb
+    state: absent

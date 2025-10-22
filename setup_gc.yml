@@ -1,0 +1,6 @@
+---
+- name: Настройка окружения на VM Google Cloud с установкой Docker и PostgreSQL в контейнере
+  hosts: gcp_vm
+  become: yes
+  roles:
+    - roles/gcp

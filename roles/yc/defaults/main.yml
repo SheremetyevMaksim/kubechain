@@ -1,0 +1,9 @@
+---
+# defaults file for roles/gc
+postgres_version: "15"
+postgres_databases:
+  - otus_documents_db
+  - otus_users_db
+postgres_user: postgres
+postgres_password: postgres
+ansible_user: kingdark8877

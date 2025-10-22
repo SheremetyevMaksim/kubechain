@@ -1,0 +1,14 @@
+galaxy_info:
+  author: Maxim Sheremetyev
+  description: Ansible role for setting up PostgreSQL and Docker on a GCP VM
+  company: Your Company Name
+  license: MIT
+  min_ansible_version: 2.9
+  galaxy_tags:
+    - gcp
+    - postgresql
+    - docker
+    - devops
+    - infrastructure
+
+dependencies: []
