@@ -1,13 +1,14 @@
-# 📊 Grafana + Prometheus + Node Exporter
+# 📊 Grafana + Prometheus + Node Exporter + loki
 
 ## 🌐 Доступ
 
-- **Grafana**: [http://84.201.176.40/:3000](http://84.201.176.40:3000)
-- **Prometheus**: [http://84.201.176.40:9090](http://84.201.176.40:9090)
-- **Node Exporter**: [http://84.201.176.40:9100/metrics](http://84.201.176.40:9100/metrics)
+- **Grafana**: http://104.155.134.219:3000/
+- **Prometheus**: http://104.155.134.219:9090/
+- **Node Exporter**: http://104.155.134.219:3100/
+- **Loki:** http://104.155.134.219:3100
 
 ## 🔄 CI/CD
 
 Деплой exporters выполняется автоматически через GitLab CI/CD
 
-[Посмотреть пайплайны](https://otusteam.gitlab.yandexcloud.net/devops/devops-2025-03/pakhalin/ansible-playbook/-/pipelines)
+[Посмотреть пайплайны](https://otusteam.gitlab.yandexcloud.net/devops/devops-2025-03/sheremetyev/work)
